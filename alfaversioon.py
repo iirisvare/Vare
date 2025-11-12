@@ -1,9 +1,9 @@
 """
 Projekti teema:
-Mäng, kus mängija peab kindla aja jooksul koguma etteantud arvu kalu.
-Kui mängija jõuab vajaliku tulemuseni, avaneb järgmine level vähem
-aja ja suurema kalade arvuga. Kui mängija ei saavuta eesmärki,
-sööb kass Moorits mängija ära.
+Mäng, kus mängija peab kindla aja jooksul koguma etteantud arvu kalu teatud aja jooksul.
+Kui mängija sai soovitud arvu kätte enne kui aeg sai otsa, läheb ta järgmisesse levelisse.
+Seal peab ta koguma rohkem kalu vähema ajaga.Kui mängija ei suuda piisavalt 
+kalu kokku koguda, sööb kass Moorits ta ära.
 
 Autorid:
    • Ellinor Usai
@@ -14,9 +14,9 @@ Eeskujuna kasutatud allikad:
    • Kursuse materjalid
    
 Muu oluline info:
-Projekti idee tuli päriselus olemasolevast kass Mooritsast, kes on
-toidulembene ja vallatu. Mängu eesmärk on pakkuda meelelahutust,
-lahendada igavuse probleemi ning mõõta pingetaluvust kasside suhtes.
+Projekti idee tuli päriselus olemasolevast kassist, Mooritsast, kes on
+söömar ja vallatu. Mängu eesmärk on pakkuda meelelahutust,
+lahendes igavuse probleemi, ning mõõta pingetaluvust kasside suhtes.
 """
 
 import pygame
