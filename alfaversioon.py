@@ -21,6 +21,7 @@ lahendes igavuse probleemi, ning mõõta pingetaluvust kasside suhtes.
 
 import pygame
 from sys import exit
+import sys
 
 pygame.init()
 

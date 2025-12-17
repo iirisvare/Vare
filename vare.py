@@ -23,13 +23,15 @@ import random
 
 pygame.init()
 
-laius = 900
-kõrgus = 600
+# Mängu üldsätted
+laius = 1020
+kõrgus = 720
 aken = pygame.display.set_mode((laius, kõrgus))  
-pygame.display.set_caption("Projekt Vare")  
+pygame.display.set_caption("The Catfather")  
 kell = pygame.time.Clock()  
 fps = 60  
 
+# värvid
 valge = (255, 255, 255)
 must = (0, 0, 0)
 hall = (60, 60, 60)
@@ -38,27 +40,136 @@ kollane = (255, 220, 80)
 punane = (230, 50, 70)
 tumesinine = (10, 15, 40)
 
+# fondid
 suur_font = pygame.font.SysFont("bahnschrift", 52, True)  
 väike_font = pygame.font.SysFont("bahnschrift", 24)  
 
+# globaalsed muutujad
 max_tasemeid = 5  
+praegune_tase_number = 1
+praegune_tase = None
+tase_algus_aeg = 0
+kalu_kogutud = 0
+üleminek_millal = 0
+mäng_aktiivne = False
+mäng_lõppes_sõnum = ""
+kas_vahekaart = False
+tsükkel = True
 
-def loo_platvormid():
-    platvormid = []
+# üldiselt kasutatud definitsioonid
+def joonista_tekst(tekst, font, värv, y):
+    pilt = font.render(tekst, True, värv)
+    rect = pilt.get_rect(center=(laius // 2, y))
+    aken.blit(pilt, rect)
 
-    maa = pygame.Rect(0, kõrgus - 60, laius, 60)  # maapind
-    platvormid.append(maa)
+def sulge_mäng():
+    tsükkel = False
+    pygame.quit()
+    sys.exit()
 
-    # kõrgemad platvormid
-    plat1 = pygame.Rect(150, 420, 180, 20)
-    plat2 = pygame.Rect(550, 350, 200, 20)
-    plat3 = pygame.Rect(350, 260, 140, 20)
+def alusta_tase() :
+    #paneme globaalsed muutujad nulli iga uue taseme alguses
+    global mäng_aktiivne, kalu_kogutud, tase_algus_aeg, praegune_tase
+    kalu_kogutud = 0
+    tase_algus_aeg = pygame.time.get_ticks()
+    praegune_tase = Tase(aken, praegune_tase_number)
+    if mängija_grupp.sprite : #kontrollime, et ta on ikkagi olemas enne kui midagi teeme
+        mängija_grupp.sprite.rect.topleft = (100, kõrgus - 200)
+        Mängija.kiirus_x = 0
+        Mängija.kiirus_y = 0
+    mäng_aktiivne = True
 
-    platvormid += [plat1, plat2, plat3]
-    return platvormid
+
+def alusta_mäng() :
+    # Alustame mängu esimest korda, 
+    global mäng_aktiivne, mäng_lõppes_sõnum, praegune_tase_number
+    mäng_aktiivne = True
+    mäng_lõppes_sõnum = ""
+    praegune_tase_number = 1
+
+    alusta_tase() # kutsume mängu alguses esimese taseme välja
+
+# Siit algab menüüga seotud definitsioonid
+class Nupp():
+    def __init__(self, x, y, tekst, font, funktsioon=None, üksvajutus=False):
+        self.laius = 180
+        self.kõrgus = 50
+        self.funktsioon = funktsioon
+        self.üksvajutus = üksvajutus
+        self.juba_vajutatud = False
+        self.olek = 'normal' 
+        self.värvid = {'normal': "#4c3dcd", 'hover': "#8E8CFF"} #erinevad värvid eriseisundites
+        self.rect = pygame.Rect(x, y, self.laius, self.kõrgus)
+        self.pind = pygame.Surface((self.laius, self.kõrgus))
+        self.teksti_pilt = font.render(tekst, True, (20, 20, 20))
+        self.teksti_rect = self.teksti_pilt.get_rect(center=(self.laius // 2, self.kõrgus // 2))
+        
+    def joonista(self, aken):
+        hiire_pos = pygame.mouse.get_pos() 
+        #Vaatame hiire positsiooni/tegevust ja vastavalt sellele muudame nupu värvi
+        if self.rect.collidepoint(hiire_pos):
+            self.olek = 'hover'
+        else :
+            self.olek = 'normal' 
+            self.juba_vajutatud = False
+        self.pind.fill(self.värvid[self.olek])
+        self.pind.blit(self.teksti_pilt, self.teksti_rect)
+        aken.blit(self.pind, self.rect)
+
+    def käsitle_sündmus(self, sündmus):
+        if sündmus.type == pygame.MOUSEBUTTONDOWN and sündmus.button == 1:       # Kas hiir on nupu kohal
+            if self.rect.collidepoint(sündmus.pos):
+                    if self.funktsioon:
+                        if self.üksvajutus and not self.juba_vajutatud:
+                            self.funktsioon()
+                            self.juba_vajutatud = True
+                            return True
+                        elif not self.üksvajutus:
+                            self.funktsioon()
+                            return True
+        elif sündmus.type == pygame.MOUSEBUTTONUP and sündmus.button == 1:
+            self.juba_vajutatud = False 
+        return False
+    
+
+# Menüü enda definitsioon
+def menüü(aken, laius, mäng_lõppses_sõnum) :
+    aken.fill(tumesinine)
+    algus_funktsioon = alusta_mäng #anname def väärtusena, et oleks lihtsam välja kutsuda
+    lõpp_funktsioon = sulge_mäng
+    nupud = []
+    joonista_tekst("The Catfather", suur_font, kollane, 150) #pealkiri, näha menüül
+    if mäng_lõppes_sõnum:
+        # Mis kuvatakse kui mäng on kaotatud
+        joonista_tekst(mäng_lõppes_sõnum, väike_font, valge, 230)
+        proovi_uuesti = Nupp(420, 360, 'Proovi uuesti', väike_font, algus_funktsioon, üksvajutus=True)
+        välju = Nupp(420, 440, 'Välju', väike_font, lõpp_funktsioon, üksvajutus=True)
+        nupud = [proovi_uuesti, välju]
+    else:
+        # Mis kuvatakse mängu esialgsel avamisel
+        joonista_tekst("Kogu kalu enne kui aeg otsa saab.", väike_font, valge, 230)
+        alusta = Nupp(420, 360, 'Alusta', väike_font, algus_funktsioon, üksvajutus=True)
+        välju = Nupp(420, 440, 'Välju', väike_font, lõpp_funktsioon, üksvajutus=True)
+        nupud = [alusta, välju]
+    for nupp in nupud :
+        nupp.joonista(aken)
+    return nupud
+
+def vahekaart(aken) :
+    global üleminek_millal, kas_vahekaart, mäng_aktiivne
+    kaua_kestnud = pygame.time.get_ticks() - üleminek_millal
+    kaua_kestab = 1600 #aeg on millisekundites
+    aken.fill(tumesinine)
+    joonista_tekst(f'Level {praegune_tase_number}', suur_font, punane, 280)
+    if kaua_kestab <= kaua_kestnud :
+        # vahekaart on kestnud ettenähtud aja, paneme oleku False'iks
+        kas_vahekaart = False
+        return True
+    else :
+        return False # vahekaardike veel kestab
 
 class Kala:
-
+    # defineerime kogutavad kalad
     def __init__(self, x, y):
         self.laius = 30
         self.kõrgus = 20
@@ -81,10 +192,13 @@ class Kala:
 def genereeri_kalad(kui_palju, platvormid):
     kalad = []
     katseid = 0
+    miinimum_y = 80 # Vaikimisi miinimum kõrgus
+    if praegune_tase_number == 1:
+        miinimum_y = 150
     while len(kalad) < kui_palju and katseid < kui_palju * 20:
         katseid += 1
         x = random.randint(50, laius - 80)
-        y = random.randint(80, kõrgus - 150)
+        y = random.randint(miinimum_y, kõrgus - 200)
         uus_rect = pygame.Rect(x, y, 30, 20)
         sobib = True
         # kontroll, et kala ei tekiks platvormi sisse
@@ -93,8 +207,72 @@ def genereeri_kalad(kui_palju, platvormid):
                 sobib = False
                 break
         if sobib:
-            kalad.append(Kala(x, y))
+            kalad.append(Kala(x,y))
     return kalad
+
+#Tasega/Leveliga seotud definitsioonid
+class Tase :
+    def __init__(self, aken, tase_number):
+        self.aken = aken
+        self.tase_number = tase_number
+        self.taseme_info()
+        self.platvormid = self.loo_platvormid(self.tase_number)
+        self.kalad = genereeri_kalad(self.eesmärk + 3, self.platvormid)
+
+    def taseme_info(self) :
+        tase_number_kuvatav = self.tase_number - 1
+        taseme_aeg_valem = 30 - tase_number_kuvatav * 3   # igal tasel on lühem ajalimiit, selle arvutamise valem
+        if taseme_aeg_valem < 16 :
+            self.taseme_aeg = 16 # taseme miinimum ajaks on 16 sekundit
+        else :
+            self.taseme_aeg = taseme_aeg_valem
+        self.eesmärk = 5 + self.tase_number * 4  # iga tase kalade arvu valem
+
+    def loo_platvormid(self, tase_number):
+        platvormid = []
+        maa = pygame.Rect(0, kõrgus - 80, laius, 100)  # maapind
+
+        # kõrgemad platvormid, igal levelil on erinevad platvormid
+        if tase_number == 1 :
+            plat1 = pygame.Rect(100, 520, 200, 20)
+            plat2 = pygame.Rect(400, 450, 250, 20)
+            plat3 = pygame.Rect(750, 380, 200, 20)
+
+        elif tase_number == 2 :
+            plat1 = pygame.Rect(50, 450, 150, 20) 
+            plat2 = pygame.Rect(300, 380, 200, 20)
+            plat3 = pygame.Rect(650, 320, 150, 20)
+            plat4 = pygame.Rect(800, 500, 100, 20) 
+            platvormid.append(plat4)
+
+        elif tase_number == 3 :
+            plat1 = pygame.Rect(700, 480, 150, 20)
+            plat2 = pygame.Rect(400, 360, 180, 20)
+            plat3 = pygame.Rect(150, 280, 150, 20)
+            plat4 = pygame.Rect(600, 200, 100, 20)
+            platvormid.append(plat4)
+
+        elif tase_number == 4 :
+            plat1 = pygame.Rect(50, 400, 100, 20) 
+            plat2 = pygame.Rect(200, 320, 100, 20)
+            plat3 = pygame.Rect(450, 240, 120, 20)
+            plat4 = pygame.Rect(650, 320, 100, 20) 
+            plat5 = pygame.Rect(850, 400, 100, 20) 
+            platvormid.append(plat4)
+            platvormid.append(plat5)
+
+        elif tase_number == 5 :
+            plat1 = pygame.Rect(150, 480, 120, 20)
+            plat2 = pygame.Rect(350, 380, 100, 20)
+            plat3 = pygame.Rect(600, 280, 80, 20)
+            plat4 = pygame.Rect(850, 200, 100, 20) 
+            plat5 = pygame.Rect(50, 200, 100, 20) 
+            platvormid.append(plat4)
+            platvormid.append(plat5)
+
+        platvormid += [plat1, plat2, plat3, maa]
+        return platvormid
+
 
 class Mängija(pygame.sprite.Sprite):
 
@@ -106,7 +284,7 @@ class Mängija(pygame.sprite.Sprite):
         self.kiirus_x = 0
         self.kiirus_y = 0
         self.liikumiskiirus = 6
-        self.hüpe_jõud = -15  # kui kõrgele hüppab
+        self.hüpe_jõud = -18  # kui kõrgele hüppab
         self.gravitatsioonijõud = 0.8  # kui kiiresti tagasi alla tuleb
         self.maas = False  # kas seisab platvormil või on õhus
 
@@ -135,14 +313,24 @@ class Mängija(pygame.sprite.Sprite):
             self.kiirus_y = 20
         self.rect.y += self.kiirus_y
 
+        if self.rect.top < 0:  #ekraani piir
+            self.rect.top = 0
+            self.kiirus_y = 0
+
         # kontroll, kas on maa peal või platvormil
         self.maas = False
         for plat in platvormid:
             if self.rect.colliderect(plat):
-                if self.kiirus_y > 0 and self.rect.bottom >= plat.top:
-                    self.rect.bottom = plat.top  # peatub platvormil
+                # mis toimub kui mängija läheneb ülevalt
+                if self.kiirus_y > 0:
+                    self.rect.bottom = plat.top # paneme ta platvormi peale
                     self.kiirus_y = 0
                     self.maas = True
+                
+                # mis toimub kui läheneme alt
+                elif self.kiirus_y < 0:
+                    self.rect.top = plat.bottom # topime ta alla
+                    self.kiirus_y = 0
 
     def update(self, platvormid):
         self.sisend()
@@ -170,118 +358,69 @@ def kogu_kalad(mängija_rect, kalad, kalu_kogutud):
             alles.append(kala)
     return alles, kalu_kogutud + lisandus
 
-def taseme_info(tase_indeks):
-    """Annab iga taseme jaoks aja ja kalade arvu."""
-    aeg = 25 - tase_indeks * 3  # iga tase lühem ajaliselt
-    if aeg < 8:
-        aeg = 8
-    eesmärk = 5 + tase_indeks * 4  # iga tase rohkem kalu
-    return {"aeg": aeg, "eesmärk": eesmärk}
 
+# algsed seadistused enne mängu algust
 mäng_aktiivne = False  # kas mäng on käimas või mitte
 mäng_lõppes_sõnum = ""  # mida näidatakse, kui kaotad
-
-praegune_tase = 1
-kalu_kogutud = 0
-kalu_vaja = 0
-taseme_aeg = 0
-taseme_algus_aeg = 0.0
-
-platvormid = loo_platvormid()
-kalad = []
-
+praegused_nupud = menüü(aken, laius, mäng_lõppes_sõnum)
+kas_vahekaart = False
 mängija_grupp = pygame.sprite.GroupSingle()  
-mängija_grupp.add(Mängija(100, kõrgus - 200))  
+mängija_grupp.add(Mängija(100, kõrgus - 200))
 
-while True:
+while tsükkel:
+    kell.tick(fps)
     for sündmus in pygame.event.get():
-        if sündmus.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
+            if sündmus.type == pygame.QUIT:
+                sulge_mäng()
 
-        if not mäng_aktiivne:
-            # kui mäng ei käi, saab tühikuga alustada uut
-            if sündmus.type == pygame.KEYDOWN:
-                if sündmus.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    sys.exit()
-                else:
-                    # algväärtustamine uue mängu jaoks
-                    mäng_aktiivne = True
-                    mäng_lõppes_sõnum = ""
-                    praegune_tase = 1
-                    kalu_kogutud = 0
+            if not mäng_aktiivne and not kas_vahekaart:
+                    for nupp in praegused_nupud :
+                        nupp.käsitle_sündmus(sündmus)
 
-                    info = taseme_info(praegune_tase - 1)
-                    taseme_aeg = info["aeg"]
-                    kalu_vaja = info["eesmärk"]
-                    taseme_algus_aeg = pygame.time.get_ticks()
-
-                    platvormid = loo_platvormid()
-                    kalad = genereeri_kalad(kalu_vaja + 3, platvormid)
-
-                    mängija_grupp.empty()
-                    mängija_grupp.add(Mängija(100, kõrgus - 200))
-
-    if mäng_aktiivne:
-        aeg = kell.tick(fps) / 1000.0
-        möödunud = (pygame.time.get_ticks() - taseme_algus_aeg) / 1000.0
-        aeg_jäänud = max(0, taseme_aeg - möödunud)
+    # peamine mängutsükkel, töötab siis kui vahekaarti pole ning mäng on aktiivne ja tase ka eksisteerib
+    if mäng_aktiivne and praegune_tase and not kas_vahekaart:
+        kalu_vaja = praegune_tase.eesmärk
+        platvormid = praegune_tase.platvormid
+        kalad = praegune_tase.kalad
+        möödunud = (pygame.time.get_ticks() - tase_algus_aeg) / 1000.0
+        aeg_jäänud = max(0, praegune_tase.taseme_aeg - möödunud)
 
         # uuendab mängijat ja kontrollib kalu
-        mängija_grupp.update(platvormid)
+        mängija_grupp.update(praegune_tase.platvormid)
         mängija_sprite = mängija_grupp.sprite
-        kalad, kalu_kogutud = kogu_kalad(mängija_sprite.rect, kalad, kalu_kogutud)
+        praegune_tase.kalad, kalu_kogutud = kogu_kalad(mängija_sprite.rect, kalad, kalu_kogutud)
 
         # kui tase läbitud
         if kalu_kogutud >= kalu_vaja:
-            praegune_tase += 1
-            if praegune_tase > max_tasemeid:
+            praegune_tase_number += 1
+            if praegune_tase_number > max_tasemeid: # kas on läbitud piisavalt palju tasemeid, mäng lõppeb
                 mäng_aktiivne = False
                 mäng_lõppes_sõnum = "Sa toisid Mooritsa kõhu täis! Kõik tasemed läbitud."
-            else:
-                info = taseme_info(praegune_tase - 1)
-                taseme_aeg = info["aeg"]
-                kalu_vaja = info["eesmärk"]
-                kalu_kogutud = 0
-                taseme_algus_aeg = pygame.time.get_ticks()
-                kalad = genereeri_kalad(kalu_vaja + 3, platvormid)
+            elif praegune_tase_number <= max_tasemeid : # kui ei ole piisavalt, siis laeb vahelehe sisse
+                mäng_aktiivne = False
+                kas_vahekaart = True
+                üleminek_millal = pygame.time.get_ticks()
 
         # kui aeg otsas ja kalu puudu
         elif aeg_jäänud <= 0:
             mäng_aktiivne = False
-            mäng_lõppes_sõnum = f"Moorits sõi su ära! Jõudsid tasemele {praegune_tase}."
+            mäng_lõppes_sõnum = f"Moorits sõi su ära! Jõudsid tasemele {praegune_tase_number}."
 
-        aken.fill(tumesinine)  # joonistamine
+        aken.fill(tumesinine) 
 
         for plat in platvormid:
             pygame.draw.rect(aken, hall, plat)
 
-        for kala in kalad:
+        for kala in praegune_tase.kalad:
             kala.joonista(aken)
 
         mängija_grupp.draw(aken)
-        kuva_olek(aken, praegune_tase, kalu_kogutud, kalu_vaja, aeg_jäänud)
-
+        kuva_olek(aken, praegune_tase_number, kalu_kogutud, kalu_vaja, aeg_jäänud)
+    
+    elif not mäng_aktiivne and kas_vahekaart :
+        if vahekaart(aken) :
+            kas_vahekaart = False
+            alusta_tase()
     else:
-        # menüü
-        kell.tick(fps)
-        aken.fill(tumesinine)
-
-        def joonista_tekst(tekst, font, värv, y):
-            pilt = font.render(tekst, True, värv)
-            rect = pilt.get_rect(center=(laius // 2, y))
-            aken.blit(pilt, rect)
-
-        # pealkiri
-        joonista_tekst("The Catfather", suur_font, kollane, 150)
-
-        if mäng_lõppes_sõnum:
-            joonista_tekst(mäng_lõppes_sõnum, väike_font, valge, 230)
-            joonista_tekst("Vajuta ükskõik millist klahvi, et uuesti proovida.", väike_font, punane, 280)
-        else:
-            # alguse juhised
-            joonista_tekst("Kogu kalu enne kui aeg otsa saab.", väike_font, valge, 230)
-            joonista_tekst("Vajuta ükskõik millist klahvi, et alustada.", väike_font, punane, 280)
-
+        praegused_nupud = menüü(aken, laius, mäng_lõppes_sõnum)
     pygame.display.flip()  
